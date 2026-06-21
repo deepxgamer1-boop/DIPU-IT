@@ -212,6 +212,10 @@ function joinMultiplayerRoom() {
 }
 
 function enterWaitingRoom() {
+    // 👈 BUG FIX: Purane game ka data yahan Zero (0) kar diya gaya hai
+    currentQ = 0; 
+    myScore = 0;
+
     showScreen('screen-mp-waiting');
     document.getElementById('display-room-code').innerText = roomID;
     
@@ -239,7 +243,6 @@ function enterWaitingRoom() {
         if (data.status === 'playing') updateDynamicProgressBars(data.players);
     });
 }
-
 function hostStartGame() { db.ref('rooms/' + roomID).update({ status: 'playing' }); }
 
 function updateDynamicProgressBars(playersData) {
