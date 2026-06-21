@@ -1,12 +1,12 @@
 // ====== FIREBASE SETUP (Apni Keys Yahan Dalein) ======
 const firebaseConfig = {
-    apiKey: "AIzaSyCJtCQ_xEzq4Dq6769Cpp6lopHoyko2LT0",
-    authDomain: "speedmath-live.firebaseapp.com",
-    databaseURL: "https://speedmath-live-default-rtdb.firebaseio.com",
-    projectId: "speedmath-live",
-    storageBucket: "speedmath-live.firebasestorage.app",
-    messagingSenderId: "4434523943",
-    appId: "1:4434523943:web:9fcada4214b5229bf95b02"
+    apiKey: "API_KEY_HERE",
+    authDomain: "DOMAIN_HERE",
+    databaseURL: "DATABASE_URL_HERE",
+    projectId: "PROJECT_ID_HERE",
+    storageBucket: "STORAGE_HERE",
+    messagingSenderId: "MESSAGING_ID_HERE",
+    appId: "APP_ID_HERE"
 };
 
 // Initialize Firebase
@@ -313,6 +313,15 @@ function setupGameUIAndStart() {
     showScreen('screen-game');
     secondsPassed = 0; timerInterval = setInterval(updateTimer, 1000);
     currentQ = 0; loadNextQuestion();
+}
+
+function getRangeByDifficulty(digits, difficulty) {
+    let min = Math.pow(10, digits - 1); if(digits === 1) min = 2;
+    let max = Math.pow(10, digits) - 1; let range = max - min;
+    if (difficulty === "easy") return { min: min, max: min + Math.floor(range * 0.3) };
+    if (difficulty === "difficult") return { min: min + Math.floor(range * 0.5), max: max };
+    if (difficulty === "expert") return { min: min + Math.floor(range * 0.8), max: max };
+    return { min: min, max: max };
 }
 
 function generateSingleQuestionData() {
