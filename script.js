@@ -78,6 +78,13 @@ function gcd(a, b) { return b ? gcd(b, a % b) : a; }
 function getRandom(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
 
 function showScreen(screenId) {
+    // 🔥 MASTER FIX 1: Agar Home Screen par ja rahe hain, toh purane connection cut kar do
+    if (screenId === 'screen-1') {
+        if (roomID) db.ref('rooms/' + roomID).off(); 
+        clearInterval(timerInterval);
+        isMultiplayer = false;
+    }
+
     document.querySelectorAll('.container').forEach(c => c.classList.add('hidden'));
     document.getElementById(screenId).classList.remove('hidden');
 }
@@ -212,10 +219,12 @@ function joinMultiplayerRoom() {
 }
 
 function enterWaitingRoom() {
-    // 👈 BUG FIX: Purane game ka data yahan Zero (0) kar diya gaya hai
     currentQ = 0; 
     myScore = 0;
-
+    
+    // 🔥 MASTER FIX 2: Naye room me ghusne se pehle sure karo ki purana koi listener nahi hai
+    if (roomID) db.ref('rooms/' + roomID).off(); 
+    
     showScreen('screen-mp-waiting');
     document.getElementById('display-room-code').innerText = roomID;
     
@@ -227,10 +236,12 @@ function enterWaitingRoom() {
         document.getElementById('client-msg').classList.remove('hidden');
     }
 
+    // Naya live connection chalu
     db.ref('rooms/' + roomID).on('value', (snapshot) => {
         const data = snapshot.val();
         if(!data) return;
 
+        // Player List Update
         let listHtml = ""; let players = data.players || {};
         Object.keys(players).forEach(pid => {
             let p = players[pid];
@@ -239,10 +250,20 @@ function enterWaitingRoom() {
         });
         document.getElementById('mp-players-list').innerHTML = listHtml;
 
-        if (data.status === 'playing' && currentQ === 0) setupGameUIAndStart();
-        if (data.status === 'playing') updateDynamicProgressBars(data.players);
+        // 🔥 MASTER FIX 3: Strictly check karo ki Game Screen chhupi hui hai tabhi naya game start karo
+        let isGameHidden = document.getElementById('screen-game').classList.contains('hidden');
+        
+        if (data.status === 'playing' && isGameHidden) {
+            setupGameUIAndStart();
+        }
+        
+        // Game chalne ke dauran Progress bar update karo
+        if (data.status === 'playing' && !isGameHidden) {
+            updateDynamicProgressBars(data.players);
+        }
     });
 }
+
 function hostStartGame() { db.ref('rooms/' + roomID).update({ status: 'playing' }); }
 
 function updateDynamicProgressBars(playersData) {
@@ -314,8 +335,13 @@ function setupGameUIAndStart() {
     }
 
     showScreen('screen-game');
-    secondsPassed = 0; timerInterval = setInterval(updateTimer, 1000);
-    currentQ = 0; loadNextQuestion();
+    
+    // 🔥 MASTER FIX 4: Purane Timers clear karke bilkul fresh start
+    clearInterval(timerInterval);
+    secondsPassed = 0; 
+    timerInterval = setInterval(updateTimer, 1000);
+    currentQ = 0; 
+    loadNextQuestion();
 }
 function getRangeByDifficulty(digits, difficulty) {
     let min = Math.pow(10, digits - 1); if(digits === 1) min = 2;
