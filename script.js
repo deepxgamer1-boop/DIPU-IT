@@ -10,7 +10,11 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-firebase.initializeApp(firebaseConfig);
+try {
+    firebase.initializeApp(firebaseConfig);
+} catch(e) {
+    console.error("Firebase init error:", e);
+}
 const db = firebase.database();
 // ======================================================
 
@@ -23,14 +27,13 @@ let bodmasNumType, bodmasNumOps, bodmasAllowedOps = [];
 let currentQ = 0, currentAnswerStr = "", currentAnswerVal = 0, currentTyped = "";
 let timerInterval, secondsPassed = 0, mcqOptionsArray = [];
 
-// Multiplayer Globals
 let isMultiplayer = false;
 let roomID = "";
 let isHost = false;
 let myName = "";
 let myPlayerId = "player_" + Math.random().toString(36).substr(2, 9);
 let myScore = 0;
-let mpSyncedQuestions = []; // Taaki sabko same questions aayein
+let mpSyncedQuestions = []; 
 
 // Audio Context
 const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -54,7 +57,6 @@ function playSound(type) {
     }
 }
 
-// Theme
 function toggleTheme() {
     const body = document.body; body.classList.toggle('light-mode');
     const isLight = body.classList.contains('light-mode');
@@ -63,7 +65,6 @@ function toggleTheme() {
 }
 window.onload = () => { if(localStorage.getItem('speedMathTheme') === 'light') toggleTheme(); }
 
-// Math Utility
 class Frac {
     constructor(n, d) { this.n = n; this.d = d; this.simplify(); }
     simplify() { let g = gcd(Math.abs(this.n), Math.abs(this.d)); this.n/=g; this.d/=g; if(this.d < 0){this.n*=-1; this.d*=-1;} }
@@ -76,15 +77,18 @@ class Frac {
 function gcd(a, b) { return b ? gcd(b, a % b) : a; }
 function getRandom(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
 
-// Screen Nav
 function showScreen(screenId) {
     document.querySelectorAll('.container').forEach(c => c.classList.add('hidden'));
     document.getElementById(screenId).classList.remove('hidden');
 }
 
-// ==========================================
-// ====== NEW MULTIPLAYER FLOW LOGIC ========
-// ==========================================
+// ==== NEW FLOW LOGIC ====
+function startSoloFlow() {
+    isMultiplayer = false;
+    document.getElementById('start-btn').innerText = "Start Solo Practice 🚀";
+    toggleConfigView(); // Update view based on selected radio
+    showScreen('screen-2');
+}
 
 function showMultiplayerNameScreen() {
     isMultiplayer = true;
@@ -98,11 +102,19 @@ function proceedToMpLobby() {
     showScreen('screen-mp-choice');
 }
 
-// Ye function ab Solo aur Host dono ke liye kaam karega
 function goToScreen2(asHost = false) {
-    if(!asHost) isMultiplayer = false;
+    isMultiplayer = asHost;
+    document.getElementById('start-btn').innerText = asHost ? "Create Room & Wait 🚀" : "Start Solo Practice 🚀";
+    toggleConfigView();
+    showScreen('screen-2');
+}
+
+// Dynamic Config Toggle based on Operation selection
+function toggleConfigView() {
+    let opCheck = document.querySelector('input[name="op"]:checked');
+    if(!opCheck) return;
+    operation = opCheck.value;
     
-    operation = document.querySelector('input[name="op"]:checked').value;
     isBodmasMode = (operation === 'bodmas');
     isSpecialMode = ['table', 'sq', 'sqrt', 'cube', 'cuberoot'].includes(operation);
 
@@ -120,18 +132,13 @@ function goToScreen2(asHost = false) {
     } else {
         document.getElementById('standard-config').classList.remove('hidden');
     }
-
-    // Change Button Text based on mode
-    document.getElementById('start-btn').innerText = asHost ? "Create Multiplayer Room 🚀" : "Start Solo Practice 🚀";
-    
-    showScreen('screen-2');
 }
 
-// When clicking Start/Create on Screen 2
 function startSession() {
     clearInterval(timerInterval);
     
-    // Read all settings
+    // Read Settings
+    toggleConfigView(); // Ensure latest operation is grabbed
     diff = document.getElementById('diff-select').value;
     inputMode = document.querySelector('input[name="input-mode"]:checked').value;
     totalQuestions = parseInt(document.getElementById('total-q').value);
@@ -146,7 +153,7 @@ function startSession() {
                 if(!isNaN(start) && !isNaN(end)) for(let i=start; i<=end; i++) targetNumbers.push(i);
             } else if (!isNaN(parseInt(p))) targetNumbers.push(parseInt(p));
         });
-        if(targetNumbers.length === 0) { return alert("Enter valid numbers!"); }
+        if(targetNumbers.length === 0) return alert("Enter valid numbers!"); 
         if (activityMode === 'learn') return generateLearnScreen(); 
         generatePracticePool(); 
     } else if (isBodmasMode) {
@@ -160,31 +167,24 @@ function startSession() {
     }
 
     if (isMultiplayer) {
-        // HOST CREATING ROOM
-        roomID = Math.floor(1000 + Math.random() * 9000).toString();
-        isHost = true;
-        myScore = 0;
-        
-        // Host pre-generates ALL questions so everyone gets exactly the same math problems
-        mpSyncedQuestions = [];
-        for(let i=0; i<totalQuestions; i++) {
-            mpSyncedQuestions.push(generateSingleQuestionData());
+        try {
+            roomID = Math.floor(1000 + Math.random() * 9000).toString();
+            isHost = true; myScore = 0;
+            
+            mpSyncedQuestions = [];
+            for(let i=0; i<totalQuestions; i++) mpSyncedQuestions.push(generateSingleQuestionData());
+
+            db.ref('rooms/' + roomID).set({
+                status: 'waiting', totalQ: totalQuestions, inputMode: inputMode, questions: mpSyncedQuestions,
+                players: { [myPlayerId]: { name: myName, score: 0 } }
+            }).catch(e => {
+                alert("Firebase Error! Are your API keys correct? Details:\n" + e.message);
+            });
+            enterWaitingRoom();
+        } catch(e) {
+            alert("Application Error! Check Firebase setup.\n" + e.message);
         }
-
-        // Push Room to Firebase
-        db.ref('rooms/' + roomID).set({
-            status: 'waiting',
-            totalQ: totalQuestions,
-            inputMode: inputMode,
-            questions: mpSyncedQuestions,
-            players: {
-                [myPlayerId]: { name: myName, score: 0 }
-            }
-        });
-
-        enterWaitingRoom();
     } else {
-        // SOLO PLAY
         setupGameUIAndStart();
     }
 }
@@ -193,30 +193,22 @@ function joinMultiplayerRoom() {
     let code = document.getElementById('join-room-code').value;
     if (!code) return alert("Enter 4-Digit Room Code!");
     
-    db.ref('rooms/' + code).once('value', (snapshot) => {
-        if (snapshot.exists()) {
-            const data = snapshot.val();
-            if (data.status === 'waiting') {
-                roomID = code;
-                isHost = false;
-                myScore = 0;
-                totalQuestions = data.totalQ;
-                inputMode = data.inputMode;
-                mpSyncedQuestions = data.questions; // Sync host's questions
-                
-                // Add me to players list
-                db.ref('rooms/' + roomID + '/players/' + myPlayerId).set({
-                    name: myName, score: 0
-                });
-                
-                enterWaitingRoom();
-            } else {
-                alert("Room is already full or game started!");
-            }
-        } else {
-            alert("Invalid Room Code!");
-        }
-    });
+    try {
+        db.ref('rooms/' + code).once('value', (snapshot) => {
+            if (snapshot.exists()) {
+                const data = snapshot.val();
+                if (data.status === 'waiting') {
+                    roomID = code; isHost = false; myScore = 0;
+                    totalQuestions = data.totalQ; inputMode = data.inputMode; mpSyncedQuestions = data.questions; 
+                    
+                    db.ref('rooms/' + roomID + '/players/' + myPlayerId).set({ name: myName, score: 0 });
+                    enterWaitingRoom();
+                } else { alert("Room is already full or game started!"); }
+            } else { alert("Invalid Room Code!"); }
+        });
+    } catch(e) {
+        alert("Failed to connect to Firebase! Ensure API keys are added.");
+    }
 }
 
 function enterWaitingRoom() {
@@ -231,14 +223,11 @@ function enterWaitingRoom() {
         document.getElementById('client-msg').classList.remove('hidden');
     }
 
-    // Listen to players joining
     db.ref('rooms/' + roomID).on('value', (snapshot) => {
         const data = snapshot.val();
         if(!data) return;
 
-        // Update Players List
-        let listHtml = "";
-        let players = data.players || {};
+        let listHtml = ""; let players = data.players || {};
         Object.keys(players).forEach(pid => {
             let p = players[pid];
             let isMe = (pid === myPlayerId) ? "(You)" : "";
@@ -246,45 +235,29 @@ function enterWaitingRoom() {
         });
         document.getElementById('mp-players-list').innerHTML = listHtml;
 
-        // If Host started game
-        if (data.status === 'playing' && currentQ === 0) {
-            setupGameUIAndStart();
-        }
-
-        // Live updating progress bars during game
-        if (data.status === 'playing') {
-            updateDynamicProgressBars(data.players);
-        }
+        if (data.status === 'playing' && currentQ === 0) setupGameUIAndStart();
+        if (data.status === 'playing') updateDynamicProgressBars(data.players);
     });
 }
 
-function hostStartGame() {
-    db.ref('rooms/' + roomID).update({ status: 'playing' });
-}
+function hostStartGame() { db.ref('rooms/' + roomID).update({ status: 'playing' }); }
 
-// Render dynamic progress bars for N players
 function updateDynamicProgressBars(playersData) {
     let container = document.getElementById('dynamic-bars-container');
     container.innerHTML = "";
     
-    // Sort players by score highest first
     let playersArr = Object.keys(playersData).map(k => ({id: k, ...playersData[k]}));
     playersArr.sort((a,b) => b.score - a.score);
 
     playersArr.forEach(p => {
         let isMe = p.id === myPlayerId;
-        let color = isMe ? '#22c55e' : '#3b82f6'; // Green for me, Blue for others
+        let color = isMe ? '#22c55e' : '#3b82f6';
         let barWidth = (p.score / totalQuestions) * 100;
         
-        // Winner check
-        if(p.score >= totalQuestions) {
-            endMultiplayerGame(p);
-        }
+        if(p.score >= totalQuestions) endMultiplayerGame(p);
 
         container.innerHTML += `
-            <div class="mp-bar-row">
-                <span>${p.name} ${isMe?'(You)':''}</span><span>${p.score}/${totalQuestions}</span>
-            </div>
+            <div class="mp-bar-row"><span>${p.name} ${isMe?'(You)':''}</span><span>${p.score}/${totalQuestions}</span></div>
             <div style="background:var(--bg-main); width:100%; height:10px; border-radius:5px; margin-bottom:12px; border: 1px solid var(--border);">
                 <div style="background:${color}; width:${barWidth}%; height:100%; border-radius:5px; transition:0.3s;"></div>
             </div>
@@ -294,22 +267,17 @@ function updateDynamicProgressBars(playersData) {
 
 function endMultiplayerGame(winnerData) {
     clearInterval(timerInterval);
-    db.ref('rooms/' + roomID).off(); // Stop listening
+    db.ref('rooms/' + roomID).off(); 
     
     showScreen('screen-result');
     let title = document.getElementById('result-title');
     let winMsg = document.getElementById('mp-winner-announcement');
-    
-    document.getElementById('btn-view-history').classList.add('hidden'); // Hide history for MP
+    document.getElementById('btn-view-history').classList.add('hidden'); 
 
     if (winnerData.id === myPlayerId) {
-        title.innerText = "🏆 YOU WON! 🎉";
-        title.style.color = "var(--success)";
-        winMsg.innerText = "Fastest Fingers!";
+        title.innerText = "🏆 YOU WON! 🎉"; title.style.color = "var(--success)"; winMsg.innerText = "Fastest Fingers!";
     } else {
-        title.innerText = "❌ YOU LOST!";
-        title.style.color = "var(--danger)";
-        winMsg.innerText = `Winner: ${winnerData.name} 🏆`;
+        title.innerText = "❌ YOU LOST!"; title.style.color = "var(--danger)"; winMsg.innerText = `Winner: ${winnerData.name} 🏆`;
     }
     winMsg.classList.remove('hidden');
     
@@ -318,14 +286,10 @@ function endMultiplayerGame(winnerData) {
     let s = (secondsPassed % 60).toString().padStart(2, '0');
     document.getElementById('res-time').innerText = `${m}:${s}`;
     document.getElementById('res-speed').innerText = `${(secondsPassed / totalQuestions).toFixed(1)} sec/q`;
-    
     isMultiplayer = false;
 }
 
-// ==========================================
-// ====== GAME ENGINE & UI SETUP ============
-// ==========================================
-
+// ==== GAME ENGINE ====
 function setupGameUIAndStart() {
     document.getElementById('typing-wrapper').classList.toggle('hidden', inputMode === 'mcq');
     document.getElementById('custom-keyboard').classList.toggle('hidden', inputMode === 'mcq');
@@ -347,10 +311,8 @@ function setupGameUIAndStart() {
     }
 
     showScreen('screen-game');
-    secondsPassed = 0; 
-    timerInterval = setInterval(updateTimer, 1000);
-    currentQ = 0; 
-    loadNextQuestion();
+    secondsPassed = 0; timerInterval = setInterval(updateTimer, 1000);
+    currentQ = 0; loadNextQuestion();
 }
 
 function generateSingleQuestionData() {
@@ -376,7 +338,6 @@ function generateSingleQuestionData() {
         ansStr = ansVal.toString();
     }
     
-    // Gen MCQs for this question
     let options = new Set(); options.add(ansStr);
     while(options.size < 4) {
         let offset = getRandom(1, 15);
@@ -402,12 +363,10 @@ function loadNextQuestion() {
     });
 
     if (isMultiplayer) {
-        // Sync questions read
         let q = mpSyncedQuestions[currentQ - 1];
         document.getElementById('equation-text').innerText = q.txt;
         currentAnswerStr = q.str; currentAnswerVal = q.val; mcqOptionsArray = q.mcq;
     } else {
-        // Solo local generate
         let q = generateSingleQuestionData();
         document.getElementById('equation-text').innerText = q.txt;
         currentAnswerStr = q.str; currentAnswerVal = q.val; mcqOptionsArray = q.mcq;
@@ -418,9 +377,7 @@ function loadNextQuestion() {
     else if (eqEl.innerText.length > 12) eqEl.style.fontSize = "1.8rem";
     else eqEl.style.fontSize = "2.2rem";
 
-    if(inputMode === 'mcq') {
-        for(let i=0; i<4; i++) document.getElementById(`mcq-${i}`).innerText = mcqOptionsArray[i];
-    }
+    if(inputMode === 'mcq') { for(let i=0; i<4; i++) document.getElementById(`mcq-${i}`).innerText = mcqOptionsArray[i]; }
 }
 
 function checkMCQ(btn, index) {
@@ -462,9 +419,7 @@ function keyPress(key) {
         if(currentTyped !== "-" && currentTyped !== currentAnswerStr.substring(0, currentTyped.length)){
              playSound('wrong'); document.getElementById('answer-display').classList.add('error');
         }
-    } else {
-        document.getElementById('answer-display').classList.remove('error');
-    }
+    } else { document.getElementById('answer-display').classList.remove('error'); }
 }
 
 document.addEventListener('keydown', (e) => {
@@ -481,7 +436,6 @@ function updateTimer() {
     document.getElementById('time-display').innerText = `${m}:${s}`;
 }
 
-// --- REST OF CODE (History/Learn/BODMAS) Remains Same ---
 function endPractice() {
     clearInterval(timerInterval);
     let avgSpeed = (secondsPassed / totalQuestions).toFixed(1);
@@ -500,7 +454,6 @@ function endPractice() {
 }
 
 function showHistory() { showScreen('screen-history'); renderHistory(); }
-
 function renderHistory() {
     let opFilter = document.getElementById('history-op-filter').value;
     let diffFilter = document.getElementById('history-diff-filter').value;
@@ -526,7 +479,6 @@ function renderHistory() {
     svg.innerHTML = `<polyline points="${points}" fill="none" stroke="#3b82f6" stroke-width="3" stroke-linecap="round"/>${recent.map((r, i) => { let x = (i / (recent.length - 1)) * (w - 40) + 20; let y = h - ((r.speed / maxSpeed) * (h - 40)) - 20; return `<circle cx="${x}" cy="${y}" r="4" fill="#f59e0b" /><text x="${x}" y="${y-10}" font-size="10" fill="gray" text-anchor="middle">${r.speed}</text>`; }).join('')}`;
 }
 
-// Missing Learn/BODMAS helper functions included for completeness
 function generateLearnScreen() {
     let container = document.getElementById('learn-content'); container.innerHTML = "";
     targetNumbers.forEach(n => {
