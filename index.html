@@ -22,21 +22,9 @@
 
     <div id="screen-1" class="container">
         <h2>What do you want to do today?</h2>
-        <div class="card setup-scroll">
-            <div class="op-grid">
-                <label class="op-card"><input type="radio" name="op" value="+" checked><span>➕ Addition</span></label>
-                <label class="op-card"><input type="radio" name="op" value="-"><span>➖ Subtraction</span></label>
-                <label class="op-card"><input type="radio" name="op" value="*"><span>✖️ Multiplication</span></label>
-                <label class="op-card"><input type="radio" name="op" value="/"><span>➗ Division</span></label>
-                <label class="op-card" style="border-color: #f59e0b;"><input type="radio" name="op" value="bodmas"><span style="color:#f59e0b">🧮 BODMAS</span></label>
-                <label class="op-card"><input type="radio" name="op" value="table"><span>🔢 Tables</span></label>
-                <label class="op-card"><input type="radio" name="op" value="sq"><span>x² Squares</span></label>
-                <label class="op-card"><input type="radio" name="op" value="sqrt"><span>√x Sq Roots</span></label>
-                <label class="op-card"><input type="radio" name="op" value="cube"><span>x³ Cubes</span></label>
-                <label class="op-card"><input type="radio" name="op" value="cuberoot"><span>∛x Cube Roots</span></label>
-            </div>
-            
-            <button class="btn-primary mt-20" onclick="showMultiplayerNameScreen()">Next ➡️</button>
+        <div class="card" style="display: flex; flex-direction: column; gap: 20px;">
+            <button class="btn-primary" onclick="startSoloFlow()" style="padding: 20px; font-size: 1.2rem;">👤 Solo Practice</button>
+            <button class="btn-secondary" onclick="showMultiplayerNameScreen()" style="border-color: #f59e0b; color: #f59e0b; padding: 20px; font-size: 1.2rem;">⚔️ Live Multiplayer Race</button>
         </div>
     </div>
 
@@ -73,6 +61,23 @@
         </div>
 
         <div class="card setup-scroll">
+            
+            <div class="form-group">
+                <label style="color: var(--primary); font-weight: bold;">1. Select Operation</label>
+                <div class="op-grid" style="margin-top: 10px;">
+                    <label class="op-card"><input type="radio" name="op" value="+" checked onchange="toggleConfigView()"><span>➕ Add</span></label>
+                    <label class="op-card"><input type="radio" name="op" value="-" onchange="toggleConfigView()"><span>➖ Sub</span></label>
+                    <label class="op-card"><input type="radio" name="op" value="*" onchange="toggleConfigView()"><span>✖️ Mul</span></label>
+                    <label class="op-card"><input type="radio" name="op" value="/" onchange="toggleConfigView()"><span>➗ Div</span></label>
+                    <label class="op-card" style="border-color: #f59e0b;"><input type="radio" name="op" value="bodmas" onchange="toggleConfigView()"><span style="color:#f59e0b">🧮 BODMAS</span></label>
+                    <label class="op-card"><input type="radio" name="op" value="table" onchange="toggleConfigView()"><span>🔢 Table</span></label>
+                    <label class="op-card"><input type="radio" name="op" value="sq" onchange="toggleConfigView()"><span>x² Squares</span></label>
+                    <label class="op-card"><input type="radio" name="op" value="sqrt" onchange="toggleConfigView()"><span>√x Roots</span></label>
+                </div>
+            </div>
+
+            <hr style="border-color: var(--border); margin: 20px 0;">
+
             <div id="bodmas-config" class="hidden">
                 <div class="form-group">
                     <label>Number Type</label>
@@ -141,7 +146,7 @@
                 </div>
             </div>
 
-            <button class="btn-primary mt-20" onclick="startSession()" id="start-btn">Create Multiplayer Room 🚀</button>
+            <button class="btn-primary mt-20" onclick="startSession()" id="start-btn">Start 🚀</button>
         </div>
     </div>
 
@@ -149,8 +154,7 @@
         <h2 style="color: #f59e0b;">Room Code: <span id="display-room-code" style="font-size: 2rem; color: #fff;"></span></h2>
         <div class="card setup-scroll">
             <h3 style="text-align:center; color: var(--text-muted); font-size: 1rem;">Players Joined</h3>
-            <ul id="mp-players-list" style="list-style: none; padding: 0; margin: 15px 0;">
-                </ul>
+            <ul id="mp-players-list" style="list-style: none; padding: 0; margin: 15px 0;"></ul>
             
             <div id="host-controls" class="hidden">
                 <button class="btn-primary mt-20" onclick="hostStartGame()">Start Game 🚀</button>
@@ -174,29 +178,19 @@
 
     <div id="screen-game" class="container hidden">
         <div class="top-bar">
-            <div class="stat-box">
-                <span class="stat-label">Ex</span>
-                <span class="stat-value" id="q-counter">0/10</span>
-            </div>
-            <div class="stat-box">
-                <span class="stat-label">Timer</span>
-                <span class="stat-value text-blue" id="time-display">00:00</span>
-            </div>
+            <div class="stat-box"><span class="stat-label">Ex</span><span class="stat-value" id="q-counter">0/10</span></div>
+            <div class="stat-box"><span class="stat-label">Timer</span><span class="stat-value text-blue" id="time-display">00:00</span></div>
             <button class="exit-btn" onclick="showScreen('screen-1')">Exit</button>
         </div>
 
         <div id="multiplayer-progress" class="hidden" style="width: 100%; margin-bottom: 15px; background: var(--bg-card); padding: 15px; border-radius: 12px; border: 1px solid var(--border);">
-            <div id="dynamic-bars-container">
-                </div>
+            <div id="dynamic-bars-container"></div>
         </div>
 
         <div class="arena-card">
             <div class="equation-area">
                 <span id="equation-text">Loading...</span>
-                <div class="input-wrapper" id="typing-wrapper">
-                    <span id="answer-display"></span>
-                    <span class="cursor"></span>
-                </div>
+                <div class="input-wrapper" id="typing-wrapper"><span id="answer-display"></span><span class="cursor"></span></div>
             </div>
             <div id="fraction-hint" class="hint hidden text-center" style="margin-top:10px;">Format: num/den (e.g. 1/2)</div>
             <div id="error-message" class="error-text hidden">Incorrect! Try again.</div>
@@ -210,18 +204,10 @@
         </div>
 
         <div class="keyboard" id="custom-keyboard">
-            <button onclick="keyPress('1')">1</button>
-            <button onclick="keyPress('2')">2</button>
-            <button onclick="keyPress('3')">3</button>
-            <button onclick="keyPress('4')">4</button>
-            <button onclick="keyPress('5')">5</button>
-            <button onclick="keyPress('6')">6</button>
-            <button onclick="keyPress('7')">7</button>
-            <button onclick="keyPress('8')">8</button>
-            <button onclick="keyPress('9')">9</button>
-            <button onclick="keyPress('clear')" class="action-btn">C</button>
-            <button onclick="keyPress('0')">0</button>
-            <button onclick="keyPress('delete')" class="action-btn">⌫</button>
+            <button onclick="keyPress('1')">1</button><button onclick="keyPress('2')">2</button><button onclick="keyPress('3')">3</button>
+            <button onclick="keyPress('4')">4</button><button onclick="keyPress('5')">5</button><button onclick="keyPress('6')">6</button>
+            <button onclick="keyPress('7')">7</button><button onclick="keyPress('8')">8</button><button onclick="keyPress('9')">9</button>
+            <button onclick="keyPress('clear')" class="action-btn">C</button><button onclick="keyPress('0')">0</button><button onclick="keyPress('delete')" class="action-btn">⌫</button>
             <button onclick="keyPress('-')" id="minus-key" class="hidden" style="grid-column: span 1;">-</button>
             <button onclick="keyPress('/')" id="slash-key" class="hidden" style="grid-column: span 2; background-color: var(--bg-card); color:var(--primary)">/</button>
         </div>
