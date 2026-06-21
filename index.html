@@ -6,6 +6,9 @@
     <title>SpeedMath ⚡ Dipu IT</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
 </head>
 <body class="dark-mode">
 
@@ -32,7 +35,10 @@
                 <label class="op-card"><input type="radio" name="op" value="cube"><span>x³ Cubes</span></label>
                 <label class="op-card"><input type="radio" name="op" value="cuberoot"><span>∛x Cube Roots</span></label>
             </div>
+            
             <button class="btn-primary mt-20" onclick="goToScreen2()">Next ➡️</button>
+            
+            <button class="btn-secondary mt-20" onclick="showScreen('screen-lobby')" style="border-color: #f59e0b; color: #f59e0b;">⚔️ Live Multiplayer Race</button>
         </div>
     </div>
 
@@ -63,12 +69,7 @@
                 </div>
                 <div class="form-group">
                     <label>Length of Question</label>
-                    <select id="bodmas-length">
-                        <option value="2">2 Ops</option>
-                        <option value="3" selected>3 Ops</option>
-                        <option value="4">4 Ops</option>
-                        <option value="5">5 Ops</option>
-                    </select>
+                    <select id="bodmas-length"><option value="2">2 Ops</option><option value="3" selected>3 Ops</option><option value="4">4 Ops</option><option value="5">5 Ops</option></select>
                 </div>
             </div>
 
@@ -89,12 +90,7 @@
             <div id="standard-config">
                 <div class="form-group">
                     <label>Difficulty Level</label>
-                    <select id="diff-select">
-                        <option value="easy">Easy</option>
-                        <option value="moderate" selected>Moderate</option>
-                        <option value="difficult">Difficult</option>
-                        <option value="expert">Expert</option>
-                    </select>
+                    <select id="diff-select"><option value="easy">Easy</option><option value="moderate" selected>Moderate</option><option value="difficult">Difficult</option><option value="expert">Expert</option></select>
                 </div>
                 <div class="form-group flex-row" id="digits-config">
                     <div class="flex-half">
@@ -126,6 +122,28 @@
         </div>
     </div>
 
+    <div id="screen-lobby" class="container hidden">
+        <h2 style="color: #f59e0b;">⚔️ Live 1v1 Multiplayer</h2>
+        <div class="card setup-scroll">
+            <div id="lobby-options">
+                <button class="btn-primary" onclick="createMultiplayerRoom()">Create a Room</button>
+                <h3 style="text-align: center; margin: 20px 0;">OR</h3>
+                <div class="form-group">
+                    <input type="text" id="join-room-code" placeholder="Enter 4-digit Room Code" style="text-align: center; font-size: 1.5rem; letter-spacing: 5px;">
+                </div>
+                <button class="btn-secondary" onclick="joinMultiplayerRoom()">Join Room</button>
+            </div>
+            
+            <div id="lobby-waiting" class="hidden" style="text-align: center;">
+                <h3>Room Code: <span id="display-room-code" style="color: var(--primary); font-size: 2rem;"></span></h3>
+                <p>Waiting for your friend to join...</p>
+                <div class="loader" style="margin: 20px auto; font-size: 2rem;">⏳</div>
+            </div>
+            
+            <button class="exit-btn mt-20" onclick="showScreen('screen-1')">← Back to Main Menu</button>
+        </div>
+    </div>
+
     <div id="screen-learn" class="container hidden">
         <div class="top-bar-simple">
             <button class="exit-btn" onclick="showScreen('screen-1')">← Home</button>
@@ -146,6 +164,22 @@
                 <span class="stat-value text-blue" id="time-display">00:00</span>
             </div>
             <button class="exit-btn" onclick="showScreen('screen-1')">Exit</button>
+        </div>
+
+        <div id="multiplayer-progress" class="hidden" style="width: 100%; margin-bottom: 15px; background: var(--bg-card); padding: 15px; border-radius: 12px; border: 1px solid var(--border);">
+            <div style="display:flex; justify-content:space-between; font-size:0.9rem; color:var(--text-main); font-weight:600; margin-bottom: 4px;">
+                <span>Aapka Score (You)</span><span id="my-score-text">0</span>
+            </div>
+            <div style="background:var(--bg-main); width:100%; height:10px; border-radius:5px; margin-bottom:15px; border: 1px solid var(--border);">
+                <div id="my-progress-bar" style="background:#22c55e; width:0%; height:100%; border-radius:5px; transition:0.3s;"></div>
+            </div>
+            
+            <div style="display:flex; justify-content:space-between; font-size:0.9rem; color:var(--text-main); font-weight:600; margin-bottom: 4px;">
+                <span>Dost Ka Score (Opponent)</span><span id="opp-score-text">0</span>
+            </div>
+            <div style="background:var(--bg-main); width:100%; height:10px; border-radius:5px; border: 1px solid var(--border);">
+                <div id="opp-progress-bar" style="background:#ef4444; width:0%; height:100%; border-radius:5px; transition:0.3s;"></div>
+            </div>
         </div>
 
         <div class="arena-card">
@@ -186,7 +220,7 @@
     </div>
 
     <div id="screen-result" class="container hidden">
-        <h2 style="color: var(--primary);">Session Complete 🎉</h2>
+        <h2 style="color: var(--primary);" id="result-title">Session Complete 🎉</h2>
         <div class="card result-card">
             <div class="result-row"><span>Total Questions</span><strong id="res-total">10</strong></div>
             <div class="result-row"><span>Time Taken</span><strong id="res-time" class="text-blue">00:00</strong></div>
@@ -203,7 +237,6 @@
             <div style="width: 50px;"></div>
         </div>
         <div class="card setup-scroll">
-            
             <div class="form-group flex-row">
                 <div class="flex-half">
                     <label>Operation</label>
@@ -235,8 +268,7 @@
             </div>
 
             <h3 style="text-align:center; font-size: 1rem; color: var(--primary); margin-top:20px;">🏆 Top 10 Fastest</h3>
-            <div id="leaderboard-list" class="leaderboard">
-            </div>
+            <div id="leaderboard-list" class="leaderboard"></div>
         </div>
     </div>
 
